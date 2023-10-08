@@ -335,6 +335,7 @@ function App() {
                     : true
                   return reviewer_filter && quality_filter
                 })
+                .sort((a, b) => (a.rated_date > b.rated_date ? 1 : -1))
                 .map((record) => (
                   <li
                     className={`button is-fullwidth is-small ${
@@ -348,6 +349,7 @@ function App() {
                     } `}
                     onClick={() => select_handler(record.ticket_id)}
                   >
+                    {record.rated_date && record.rated_date + " | "}
                     {record.ticket_id}{" "}
                     {record.quality_reviewed === "Reviewed" && (
                       <i className="ml-2 fas fa-check"></i>
