@@ -4,6 +4,7 @@ import Uploader from "./components/Uploader"
 import Papa from "papaparse"
 import useForm from "./hooks/useForm"
 import RCAFormBlock from "./components/page-components/RCAFormBlock"
+import { CSVLink } from "react-csv"
 
 const initialState = {
   upload: {
@@ -312,16 +313,14 @@ function App() {
               </div>
             </div>
           )}
-          <div
-            className="button is-small is-primary"
-            onClick={() =>
-              navigator.clipboard.writeText(
-                Papa.unparse(state.updated.data, { delimiter: "\t" })
-              )
-            }
-          >
-            Copy to Updated CSV
-          </div>
+          {state.updated.data && (
+            <CSVLink
+              data={state.updated.data}
+              className="button is-small is-primary"
+            >
+              Download Updated Version
+            </CSVLink>
+          )}
           <br></br>
           <br></br>
           <ul>
