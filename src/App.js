@@ -15,6 +15,10 @@ const initialState = {
     data: null,
   },
   selected: null,
+  filter: {
+    reviewer: null,
+    quality_reviewer: null,
+  },
 }
 
 const reducer = (state, action) => {
@@ -31,9 +35,35 @@ const reducer = (state, action) => {
           data: structuredClone(action.payload.data),
         },
         selected: null,
+        filter: {
+          reviewer: null,
+          quality_reviewer: null,
+        },
       }
     case "remove_file":
       return { ...state, upload: { is_uploaded: false, data: null } }
+    case "filter_reviewer":
+      return {
+        ...state,
+        filter: {
+          ...state.filter,
+          reviewer:
+            action.payload.reviewer === "All Reviewers"
+              ? ""
+              : action.payload.reviewer,
+        },
+      }
+    case "filter_quality_reviewer":
+      return {
+        ...state,
+        filter: {
+          ...state.filter,
+          quality_reviewer:
+            action.payload.reviewer === "All Reviewers"
+              ? ""
+              : action.payload.reviewer,
+        },
+      }
     case "set_selected":
       return { ...state, selected: action.payload.selection }
     case "save_form":
@@ -44,7 +74,7 @@ const reducer = (state, action) => {
       records[index] = {
         ...state.selected,
         ...action.payload.form,
-        reviewed: true,
+        updated: true,
       }
       return { ...state, updated: { ...state.updated, data: records } }
     default:
@@ -173,6 +203,18 @@ const form_fields = [
     default: "Not Reviewed",
     required: false,
   },
+  {
+    name: "quality_reviewed",
+    label: "Is Quality Reviewed?",
+    default: "Not Reviewed",
+    required: false,
+  },
+  {
+    name: "updated",
+    label: "Was updated on this session?",
+    default: false,
+    required: true,
+  },
 ]
 
 function App() {
@@ -188,6 +230,14 @@ function App() {
         dispatch({ type: "upload_file", payload: { data: results.data } })
       },
     })
+  }
+
+  const filter_handler = (type, reviewer) => {
+    if (type === "reviewer")
+      dispatch({ type: "filter_reviewer", payload: { reviewer } })
+    else if (type === "quality") {
+      dispatch({ type: "filter_quality_reviewer", payload: { reviewer } })
+    }
   }
 
   const select_handler = (ticket_id) => {
@@ -215,41 +265,96 @@ function App() {
             loadedHandler={uplaod_handler}
           />
           <br></br>
-          {state.upload.is_uploaded && (
+
+          {state.updated.data && (
             <div className="field">
               <label className="label">Reviewer Selection</label>
               <div className="control select is-small is-fullwidth">
-                <select>
+                <select
+                  onChange={(e) => {
+                    filter_handler("reviewer", e.target.value)
+                  }}
+                >
                   {[
+                    "All Reviewers",
                     ...new Set(
                       state.upload.data.map((record) => record.reviewer)
                     ),
-                  ].map((r) => (
-                    <option>{r}</option>
-                  ))}
+                  ]
+                    .filter((r) => r)
+                    .map((r) => (
+                      <option>{r}</option>
+                    ))}
                 </select>
               </div>
             </div>
           )}
+          {state.updated.data && (
+            <div className="field">
+              <label className="label">QC Reviewer Selection</label>
+              <div className="control select is-small is-fullwidth">
+                <select
+                  onChange={(e) => {
+                    filter_handler("quality", e.target.value)
+                  }}
+                >
+                  {[
+                    "All Reviewers",
+                    ...new Set(
+                      state.upload.data.map((record) => record.quality_reviewer)
+                    ),
+                  ]
+                    .filter((r) => r)
+                    .map((r) => (
+                      <option>{r}</option>
+                    ))}
+                </select>
+              </div>
+            </div>
+          )}
+          <div
+            className="button is-small is-primary"
+            onClick={() =>
+              navigator.clipboard.writeText(
+                Papa.unparse(state.updated.data, { delimiter: "\t" })
+              )
+            }
+          >
+            Copy to Updated CSV
+          </div>
+          <br></br>
           <br></br>
           <ul>
             {state.updated.data &&
-              state.updated.data.map((record) => (
-                <li
-                  className={`button is-fullwidth is-small ${
-                    record.reviewed ? "is-success" : "is-danger"
-                  } ${
-                    state.selected
-                      ? record.ticket_id !== state.selected.ticket_id
-                        ? "is-outlined"
-                        : ""
-                      : "is-outlined"
-                  }`}
-                  onClick={() => select_handler(record.ticket_id)}
-                >
-                  {record.ticket_id}
-                </li>
-              ))}
+              state.updated.data
+                .filter((r) => {
+                  let reviewer_filter = state.filter.reviewer
+                    ? state.filter.reviewer === r.reviewer
+                    : true
+                  let quality_filter = state.filter.quality_reviewer
+                    ? state.filter.quality_reviewer === r.quality_reviewer
+                    : true
+                  return reviewer_filter && quality_filter
+                })
+                .map((record) => (
+                  <li
+                    className={`button is-fullwidth is-small ${
+                      record.reviewed ? "is-success" : "is-danger"
+                    } ${
+                      state.selected
+                        ? record.ticket_id !== state.selected.ticket_id
+                          ? "is-outlined"
+                          : ""
+                        : "is-outlined"
+                    } `}
+                    onClick={() => select_handler(record.ticket_id)}
+                  >
+                    {record.ticket_id}{" "}
+                    {record.quality_reviewed === "Reviewed" && (
+                      <i className="ml-2 fas fa-check"></i>
+                    )}
+                  </li>
+                ))}
           </ul>
         </div>
         <div className="column is-9">
@@ -293,7 +398,7 @@ function App() {
                     <label className="label">Agent for Feedback</label>
                     <input
                       className={`input is-size-6 `}
-                      value={form.get("reviewer_comment")}
+                      value={form.get("agent_for_feedback")}
                       placeholder="example-agent@revolut.com"
                       onChange={(e) => {
                         form.set("agent_for_feedback", e.target.value)
@@ -369,7 +474,44 @@ function App() {
                       }}
                     />
                   </div>
+                  <div className="column is-6">
+                    <label className="label">Review Status</label>
+                    <div
+                      className={`button is-small ${
+                        form.get("reviewed") === "Reviewed"
+                          ? "is-success"
+                          : "is-danger"
+                      }`}
+                      type="button"
+                      onClick={() =>
+                        form.get("reviewed") === "Reviewed"
+                          ? form.set("reviewed", "Not reviewed")
+                          : form.set("reviewed", "Reviewed")
+                      }
+                    >
+                      {form.get("reviewed") || "Not reviewed"}
+                    </div>
+                  </div>
+                  <div className="column is-6">
+                    <label className="label">Quality Check Status</label>
+                    <div
+                      className={`button is-small ${
+                        form.get("quality_reviewed") === "Reviewed"
+                          ? "is-success"
+                          : "is-danger"
+                      }`}
+                      type="button"
+                      onClick={() =>
+                        form.get("quality_reviewed") === "Reviewed"
+                          ? form.set("quality_reviewed", "Not reviewed")
+                          : form.set("quality_reviewed", "Reviewed")
+                      }
+                    >
+                      {form.get("quality_reviewed") || "Not reviewed"}
+                    </div>
+                  </div>
                 </div>
+
                 <button
                   className="button is-small is-primary is-size-6 is-fullwidth"
                   onClick={() => save_handler()}

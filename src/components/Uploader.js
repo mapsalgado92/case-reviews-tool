@@ -1,6 +1,6 @@
 import { useState, useRef } from "react"
 
-const Uploader = ({ loadedHandler, removeHandler, label }) => {
+const Uploader = ({ loadedHandler, removeHandler }) => {
   const [file, setFile] = useState(null)
   const input_ref = useRef()
 
