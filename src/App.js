@@ -257,7 +257,7 @@ function App() {
   }
 
   return (
-    <div className="App container">
+    <div className="App">
       <div className="columns section">
         <div className="column is-3">
           <label className="label">Upload CSV</label>
